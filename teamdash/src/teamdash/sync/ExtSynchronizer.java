@@ -148,6 +148,7 @@ public class ExtSynchronizer {
         createRenameAndDeleteNodes(extNodes);
         syncReadOnlyFields(extNodes);
         syncTimeValues(extNodes);
+        discardOutboundChangesForIncomingNodes();
     }
 
     public boolean wasWbsChanged() {
@@ -254,6 +255,7 @@ public class ExtSynchronizer {
             result.setAttribute(ExtSyncUtil.EXT_SYSTEM_ID_ATTR, extSystemID);
             result.setAttribute(extIDAttr, ExtSyncUtil.INCOMING_PARENT_ID);
             wbs.add(result);
+            extNodeMap.put(ExtSyncUtil.INCOMING_PARENT_ID, result);
         }
         result.setAttribute(ExtSyncUtil.EXT_NODE_TYPE_ATTR, "Incoming Items");
         result.setReadOnly(true);
@@ -563,11 +565,6 @@ public class ExtSynchronizer {
         if (node == null)
             return;
 
-        // if the user hasn't moved this node out of the "incoming" branch,
-        // don't publish any external changes
-        if (isIncomingExtNode(node))
-            return;
-
         // if the user has placed one external node inside another in the WBS,
         // don't try to sync both time estimates.
         if (isNestedExtNode(node))
@@ -716,11 +713,6 @@ public class ExtSynchronizer {
         if (node == null)
             return;
 
-        // if the user hasn't moved this node out of the "incoming" branch,
-        // don't publish any external changes
-        if (isIncomingExtNode(node))
-            return;
-
         // if the user has placed one external node inside another in the WBS,
         // don't try to sync both time values.
         if (isNestedExtNode(node))
@@ -737,14 +729,28 @@ public class ExtSynchronizer {
         }
     }
 
-    /** @return true if the given node is the "incoming" branch of the tree */
-    private boolean isIncomingExtNode(WBSNode node) {
-        if (node == null || node.getIndentLevel() == 0)
-            return false;
-        else if (node == incomingNodeParent)
-            return true;
-        else
-            return isIncomingExtNode(wbs.getParent(node));
+    /**
+     * Nodes in the "incoming" branch of the WBS should be implicitly treated as
+     * "no external changes." Accomplish this by discarding any ExtChange
+     * objects we prepared for those nodes.
+     */
+    private void discardOutboundChangesForIncomingNodes() {
+        // find the "incoming" parent node
+        WBSNode incoming = extNodeMap.get(ExtSyncUtil.INCOMING_PARENT_ID);
+        if (incoming == null)
+            return;
+
+        // gather the external system IDs of the nodes nested under it
+        Set<String> incomingNodeIDs = buildExtNodeMap(
+            Arrays.asList(wbs.getDescendants(incoming))).keySet();
+
+        // discard matching ExtChange records
+        Iterator<ExtChange> i = extChangesNeeded.iterator();
+        while (i.hasNext()) {
+            ExtChange node = i.next();
+            if (incomingNodeIDs.contains(node.extNode.getID()))
+                i.remove();
+        }
     }
 
     private boolean isNestedExtNode(WBSNode node) {
