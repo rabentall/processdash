@@ -578,7 +578,7 @@ teamdash/hist/ProjectHistoryLocal*
           prefix="jnlpSign"/>
   </target>
 
-  <target name="verify16"
+  <target name="verify16" if="java.home.16"
       description="Verify that the main WBS Editor classes rely only upon APIs found in Java 1.6.">
 
     <property name="16.bootclasspath" value="${java.home.16}/jre/lib/rt.jar"/>

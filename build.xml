@@ -1041,7 +1041,7 @@ Authors:
   <!-- Create miscellaneous other items                                    -->
   <!-- =================================================================== -->
 
-  <target name="verify16"
+  <target name="verify16" if="java.home.16"
       depends="init,parser,globParser,translator,lexers"
       description="Verify that the main dashboard classes rely only upon APIs found in Java 1.6.">
 
